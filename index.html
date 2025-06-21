@@ -425,6 +425,35 @@ iframe.srcdoc = '<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><
 }
 </style>
 
+<script>
+function carregarWebsite() {
+  const url = document.getElementById('urlInput').value.trim();
+  if (!url) {
+    alert('Digite uma URL válida.');
+    return;
+  }
+
+  document.getElementById('loader').style.display = 'flex';
+
+  fetch('get_html.php?url=' + encodeURIComponent(url))
+    .then(response => response.text())
+    .then(html => {
+      document.getElementById('input-html').value = html;
+      iframe.srcdoc = html;
+      buildCssControls();
+      buildTextControls();
+    })
+    .catch(err => {
+      alert('Erro ao carregar o site: ' + err);
+    })
+    .finally(() => {
+      document.getElementById('loader').style.display = 'none';
+      document.getElementById('urlModal').style.display = 'none';
+    });
+}
+</script>
+
+
 
 </body>
 </html>
