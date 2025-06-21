@@ -3,51 +3,69 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Editor Dinâmico de Página</title>
+<title>Editor Dinâmico de Página com Edição de Texto e CSS</title>
 <style>
+/* ===========================
+   Estilos gerais do editor
+   =========================== */
 body {
-    margin:0; padding:0;
+    margin: 0;
+    padding: 0;
     display: flex;
     height: 100vh;
     overflow: hidden;
     font-family: Arial, sans-serif;
+    background: #111;
+    color: #fff;
 }
+/* ===========================
+   Sidebar / painel de edição
+   =========================== */
 #sidebar {
-    width: 300px;
+    width: 320px;
     background: #222;
     color: #fff;
     padding: 10px;
+    box-sizing: border-box;
     overflow-y: auto;
+    border-right: 2px solid #000;
 }
-#main {
-    flex:1;
-    position: relative;
+#sidebar h3 {
+    margin-top: 0;
+    color: #fff;
 }
-#iframe-preview {
+#sidebar label {
+    display: block;
+    margin-top: 12px;
+    font-weight: bold;
+    color: #ddd;
+    font-size: 14px;
+}
+#sidebar textarea,
+#sidebar input[type="text"],
+#sidebar input[type="number"],
+#sidebar select {
     width: 100%;
-    height: 100%;
-    border: none;
-}
-textarea#input-html {
-    width: 100%;
-    height: 120px;
+    margin-top: 4px;
+    padding: 6px;
     background: #333;
     color: #fff;
     border: 1px solid #555;
     border-radius: 4px;
     box-sizing: border-box;
-    margin-bottom: 8px;
     font-family: monospace;
-    font-size: 12px;
+    font-size: 13px;
+    resize: vertical;
 }
-button {
+#sidebar button {
     background: #28a745;
     color: white;
     border: none;
-    padding: 6px 10px;
+    padding: 8px 12px;
     cursor: pointer;
     border-radius: 4px;
-    margin-bottom: 8px;
+    margin-top: 10px;
+    font-size: 14px;
 }
 .section {
     margin-bottom: 16px;
@@ -55,27 +73,67 @@ button {
     padding-bottom: 8px;
 }
 .section h4 {
-    margin: 0 0 8px 0;
+    margin: 8px 0;
+    color: #bbb;
+    font-size: 13px;
 }
-/* inputs gerados dinamicamente */
-.sidebar-input {
+/* ===========================
+   Área principal de preview
+   =========================== */
+#main {
+    flex: 1;
+    position: relative;
+    background: #111;
+}
+#iframe-preview {
+    width: 100%;
+    height: 100%;
+    border: none;
+    background: white;
+}
+/* ===========================
+   Controles CSS e Texto gerados dinamicamente
+   =========================== */
+.input-control {
     width: 100%;
     margin-bottom: 6px;
     padding: 4px;
-    background: #000;
+    background: #333;
     color: #fff;
     border: 1px solid #555;
     border-radius: 4px;
     box-sizing: border-box;
+    font-size: 13px;
 }
+/* ===========================
+   Área de exportação de HTML
+   =========================== */
+#output-html {
+    width: 100%;
+    height: 150px;
+    background: #333;
+    color: #fff;
+    border: 1px solid #555;
+    border-radius: 4px;
+    box-sizing: border-box;
+    margin-top: 8px;
+    font-family: monospace;
+    font-size: 13px;
+    resize: vertical;
+}
+/* ===========================
+   Ocultar scrollbar no preview (iframe interno) não aplicável aqui
+   =========================== */
 </style>
 </head>
 <body>
 
 <div id="sidebar">
     <h3>Editor Dinâmico</h3>
-    <label for="input-html">Cole seu HTML completo (com &lt;style&gt; inline):</label>
-    <textarea id="input-html"><!DOCTYPE html>
+
+    <div class="section">
+        <label for="input-html">Cole seu HTML completo:</label>
+        <textarea id="input-html" rows="6"><!DOCTYPE html>
 <html>
 <head>
 <style>
@@ -87,15 +145,25 @@ p { font-size: 14px; color: #eee; }
 <body>
 <h1>Olá Mundo</h1>
 <p>Este é um parágrafo.</p>
+<div>Outro texto dentro de div.</div>
 </body>
 </html>
-</textarea>
-    <button id="load-btn">Carregar no Preview</button>
+        </textarea>
+        <button id="load-btn">Carregar no Preview</button>
+    </div>
 
-    <div id="css-controls"></div>
+    <div id="css-controls" class="section">
+        <h4>Controles de CSS</h4>
+        <!-- Será preenchido dinamicamente -->
+    </div>
+
+    <div id="text-controls" class="section">
+        <h4>Controles de Texto</h4>
+        <!-- Será preenchido dinamicamente -->
+    </div>
 
     <button id="export-btn">Exportar HTML Final</button>
-    <textarea id="output-html" readonly style="width:100%; height:100px; background:#333; color:#fff; border:1px solid #555; border-radius:4px; box-sizing:border-box; margin-top:8px; font-family:monospace; font-size:12px;"></textarea>
+    <textarea id="output-html" readonly placeholder="Aqui aparecerá o HTML final exportado"></textarea>
 </div>
 
 <div id="main">
@@ -103,90 +171,112 @@ p { font-size: 14px; color: #eee; }
 </div>
 
 <script>
+// Referências
 const loadBtn = document.getElementById('load-btn');
 const iframe = document.getElementById('iframe-preview');
 const cssControls = document.getElementById('css-controls');
+const textControls = document.getElementById('text-controls');
 const exportBtn = document.getElementById('export-btn');
 const outputHtml = document.getElementById('output-html');
+const inputHtml = document.getElementById('input-html');
 
+// Função para gerar um seletor único para um elemento
+function getUniqueSelector(el) {
+    if (el.id) {
+        return `#${el.id}`;
+    }
+    // Se sem id, construir caminho via nth-of-type
+    const parts = [];
+    while (el && el.nodeType === Node.ELEMENT_NODE && el.tagName.toLowerCase() !== 'html') {
+        let selector = el.tagName.toLowerCase();
+        // contar índice entre irmãos do mesmo tipo
+        const parent = el.parentNode;
+        if (parent) {
+            const sameTagSiblings = Array.from(parent.children).filter(child => child.tagName === el.tagName);
+            if (sameTagSiblings.length > 1) {
+                const idx = sameTagSiblings.indexOf(el) + 1;
+                selector += `:nth-of-type(${idx})`;
+            }
+        }
+        parts.unshift(selector);
+        el = parent;
+    }
+    // incluir html > body se desejar
+    return parts.length ? parts.join(' > ') : '';
+}
+
+// Função para escapar HTML no output
+function escapeHtml(str) {
+    return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+// Carregar HTML no iframe
 loadBtn.addEventListener('click', () => {
-    const html = document.getElementById('input-html').value;
-    // Carrega no iframe via srcdoc
+    const html = inputHtml.value;
     iframe.srcdoc = html;
-    // Após carregar, esperar evento load para processar CSS
     iframe.onload = () => {
         buildCssControls();
+        buildTextControls();
     };
 });
 
+// Construir controles de CSS via CSSOM
 function buildCssControls() {
-    cssControls.innerHTML = '';
+    cssControls.innerHTML = '<h4>Controles de CSS</h4>';
     const doc = iframe.contentDocument;
     const styleSheets = Array.from(doc.styleSheets);
-    // Iterar cada stylesheet inline ou interna
-    styleSheets.forEach((sheet, sheetIndex) => {
+    styleSheets.forEach((sheet) => {
         let rules;
         try {
             rules = sheet.cssRules;
         } catch (err) {
-            // CORS ou stylesheet externo inacessível
-            console.warn('Não é possível acessar regras de um CSS externo.');
+            // CSS externo inacessível
             return;
         }
-        Array.from(rules).forEach((rule, ruleIndex) => {
+        Array.from(rules).forEach((rule) => {
             if (rule.type === CSSRule.STYLE_RULE) {
                 const selector = rule.selectorText;
                 const style = rule.style;
-                // Criar seção para este seletor
                 const section = document.createElement('div');
                 section.className = 'section';
-                const h4 = document.createElement('h4');
-                h4.textContent = `Selector: ${selector}`;
-                section.appendChild(h4);
-                // Para cada propriedade CSS presente, criamos um input dependendo do tipo
+                const title = document.createElement('h4');
+                title.textContent = `Selector: ${selector}`;
+                section.appendChild(title);
                 for (let i = 0; i < style.length; i++) {
                     const prop = style[i];
                     const val = style.getPropertyValue(prop).trim();
-                    // Exemplo: se for cor, criar <input type="color"> se valor hex ou rgb
                     let input;
                     if (/^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(val) || /^rgb/.test(val)) {
                         input = document.createElement('input');
                         input.type = 'color';
-                        // converter rgb para hex se necessário
                         let hex = val;
                         if (val.startsWith('rgb')) {
-                            // converter rgb(...) para hex
                             const nums = val.match(/\d+/g).map(Number);
                             hex = '#' + nums.slice(0,3).map(x=>x.toString(16).padStart(2,'0')).join('');
                         }
                         input.value = hex;
                     } else if (/^\d+px$/.test(val) || /^\d+$/.test(val)) {
-                        // valores em px ou números: usar input number
                         input = document.createElement('input');
                         input.type = 'number';
                         input.value = parseInt(val);
                         input.dataset.unit = val.endsWith('px') ? 'px' : '';
                     } else {
-                        // fallback: text input para qualquer outro valor
                         input = document.createElement('input');
                         input.type = 'text';
                         input.value = val;
                     }
-                    input.className = 'sidebar-input';
-                    // Label para o input
+                    input.className = 'input-control';
                     const label = document.createElement('label');
-                    label.style.fontSize = '12px';
-                    label.style.color = '#ddd';
                     label.textContent = prop;
-                    // Ao mudar o input, atualiza o style rule
+                    label.style.color = '#ccc';
                     input.addEventListener('input', () => {
                         let newVal = input.value;
                         if (input.type === 'number') {
                             newVal = newVal + (input.dataset.unit || 'px');
                         }
-                        // Aplica diretamente no CSSOM
-                        rule.style.setProperty(prop, newVal);
-                        // Também atualiza o iframe.srcdoc? Não necessário, pois CSSOM já atualiza o preview vivo.
+                        try {
+                            rule.style.setProperty(prop, newVal);
+                        } catch(e){}
                     });
                     section.appendChild(label);
                     section.appendChild(input);
@@ -197,17 +287,94 @@ function buildCssControls() {
     });
 }
 
-// Exportar HTML final: inclui o HTML do iframe, com CSS inline modificado
+// Construir controles de Texto: detectar elementos com texto textual
+function buildTextControls() {
+    textControls.innerHTML = '<h4>Controles de Texto</h4>';
+    const doc = iframe.contentDocument;
+    const walker = doc.createTreeWalker(doc.body, NodeFilter.SHOW_TEXT, {
+        acceptNode: function(node) {
+            if (!node.nodeValue.trim()) return NodeFilter.FILTER_REJECT;
+            // Rejeitar nós dentro script/style
+            if (node.parentNode.closest('script, style')) return NodeFilter.FILTER_REJECT;
+            return NodeFilter.FILTER_ACCEPT;
+        }
+    });
+    const elementsSet = new Set();
+    let node;
+    while (node = walker.nextNode()) {
+        const parent = node.parentNode;
+        if (parent && parent.nodeType === Node.ELEMENT_NODE) {
+            elementsSet.add(parent);
+        }
+    }
+    // Para cada elemento detectado, criar controle
+    Array.from(elementsSet).forEach((el) => {
+        const selector = getUniqueSelector(el);
+        // Obter texto atual (trim pode remover espaços importantes? usamos textContent direto)
+        let textValue = el.textContent.trim();
+        // Criar seção para este elemento
+        const section = document.createElement('div');
+        section.className = 'section';
+        const title = document.createElement('h4');
+        title.textContent = selector || el.tagName.toLowerCase();
+        section.appendChild(title);
+        // Textarea auto-expansível
+        const ta = document.createElement('textarea');
+        ta.className = 'input-control';
+        ta.value = textValue;
+        ta.rows = 1;
+        // Auto-expand ao digitar
+        ta.style.overflow = 'hidden';
+        ta.addEventListener('input', () => {
+            ta.style.height = 'auto';
+            ta.style.height = (ta.scrollHeight) + 'px';
+            // Atualizar texto no iframe
+            const target = iframe.contentDocument.querySelector(selector);
+            if (target) {
+                // Substituir todo o conteúdo textual do elemento
+                // Se quiser preservar tags internas, necessidade de lógica mais complexa.
+                target.textContent = ta.value;
+            }
+        });
+        // Ajustar altura inicial
+        ta.addEventListener('focus', () => {
+            ta.select(); // auto-select ao focar
+        });
+        // Ajuste inicial de altura
+        ta.style.height = 'auto';
+        ta.style.height = (ta.scrollHeight) + 'px';
+        section.appendChild(ta);
+        textControls.appendChild(section);
+    });
+}
+
+// Exportar HTML final, incluindo CSS inline atualizado
 exportBtn.addEventListener('click', () => {
     const doc = iframe.contentDocument;
-    // Serializar: coletar <head> e <body>
-    // Atenção: scripts inline podem executar quando reaberto. Aqui demo simples:
+    // Atualizar <style> inline com cssRules atuais para refletir mudanças
+    const head = doc.head;
+    // Processar cada <style> interno
+    const styleEls = Array.from(head.querySelectorAll('style'));
+    styleEls.forEach((styleEl, idx) => {
+        const sheet = doc.styleSheets[idx];
+        try {
+            let cssText = '';
+            Array.from(sheet.cssRules).forEach(rule => {
+                cssText += rule.cssText + '\n';
+            });
+            styleEl.textContent = cssText;
+        } catch(e){}
+    });
+    // Serializar HTML
     const doctype = '<!DOCTYPE html>\n';
     const htmlEl = doc.documentElement.cloneNode(true);
-    // Opcional: remover atributos sandbox, etc.
     const serialized = doctype + htmlEl.outerHTML;
     outputHtml.value = serialized;
 });
+
+// Inicializamos preview vazio
+iframe.srcdoc = '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>Preview</title></head><body></body></html>';
 </script>
+
 </body>
 </html>
