@@ -435,7 +435,7 @@ function carregarWebsite() {
 
       Swal.showLoading();
 
-      return fetch('get_html.php?url=' + encodeURIComponent(url))
+      return fetch('https://api.dicasbrasil.com.br/scriptvision/deveditor.php?url=' + encodeURIComponent(url))
         .then(response => {
           if (!response.ok) throw new Error('Erro ao buscar o site');
           return response.text();
